@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D打印运营中台 - 完整演示版</title>
+    
+    <!-- 引入 Tailwind CSS 用于样式 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 引入 React 和 ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- 引入 Babel 用于解析 JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- 设置字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* 自定义滚动条样式 */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .animate-in { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // --- 图标组件 (SVG) ---
+        // 为了单文件运行，手动定义 Lucide 图标
+        const Icons = {
+            LayoutDashboard: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>,
+            ClipboardList: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>,
+            Building2: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>,
+            FileText: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>,
+            TrendingUp: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>,
+            Box: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>,
+            Zap: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
+            Users: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+            ShieldCheck: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>,
+            AlertTriangle: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>,
+            CheckCircle: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
+            Clock: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+            Download: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>,
+            Search: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
+            Filter: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>,
+            MoreHorizontal: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>,
+        };
+
+        // --- Mock Data ---
+
+        const mockOrders = [
+          { id: 'ORD-2024001', model: '霸王龙-头部.stl', user: '小明妈妈', location: '北京-朝阳', farm: '极速3D农场(A级)', status: '生产中', time: '2小时前', warning: false },
+          { id: 'ORD-2024002', model: '编程课作业-火箭.obj', user: '李子涵', location: '上海-浦东', farm: '未分配', status: '待分配', time: '10分钟前', warning: false },
+          { id: 'ORD-2024003', model: '自定义-奥特曼.stl', user: '王伟', location: '浙江-杭州', farm: '匠心模型工作室(S级)', status: '待质检', time: '1天前', warning: false },
+          { id: 'ORD-2024004', model: '昆虫套组.zip', user: '张老师', location: '江苏-南京', farm: '极速3D农场(A级)', status: '已发货', time: '3天前', warning: false },
+          { id: 'ORD-2024005', model: '复杂齿轮.stl', user: '陈晨', location: '广东-深圳', farm: '星光科技(C级)', status: '生产中', time: '50小时前', warning: true },
+        ];
+
+        const mockFarms = [
+          { id: 'F-001', name: '匠心模型工作室', owner: '张师傅', level: 'S级', capacity: 95, machines: 20, specialized: ['高精度手办', '多色打印'], status: '正常', location: '北京' },
+          { id: 'F-002', name: '极速3D农场', owner: '李厂长', level: 'A级', capacity: 45, machines: 50, specialized: ['FDM批量件', 'PLA+'], status: '正常', location: '广东' },
+          { id: 'F-003', name: '星光科技', owner: '王小二', level: 'C级', capacity: 10, machines: 8, specialized: ['大尺寸'], status: '整改中', location: '江苏' },
+          { id: 'F-004', name: '未来造物工坊', owner: '赵云', level: '待审核', capacity: 0, machines: 12, specialized: ['光固化'], status: '申请中', location: '浙江' },
+        ];
+
+        // --- Components ---
+
+        const StatCard = ({ title, value, subtext, icon: Icon, color }) => (
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-start justify-between hover:shadow-md transition-shadow">
+            <div>
+              <p className="text-slate-500 text-sm font-medium mb-1">{title}</p>
+              <h3 className="text-2xl font-bold text-slate-800">{value}</h3>
+              <p className={`text-xs mt-2 ${subtext.includes('+') ? 'text-green-600' : 'text-slate-400'}`}>
+                {subtext}
+              </p>
+            </div>
+            <div className={`p-3 rounded-lg ${color}`}>
+              <Icon className="w-6 h-6 text-white" />
+            </div>
+          </div>
+        );
+
+        const SOPCard = ({ title, items, critical = false }) => (
+          <div className={`p-5 rounded-xl border ${critical ? 'border-red-100 bg-red-50' : 'border-slate-100 bg-white'}`}>
+            <h4 className={`font-bold mb-3 flex items-center gap-2 ${critical ? 'text-red-700' : 'text-slate-800'}`}>
+              {critical && <Icons.AlertTriangle className="w-4 h-4" />}
+              {title}
+            </h4>
+            <ul className="space-y-2">
+              {items.map((item, idx) => (
+                <li key={idx} className="text-sm text-slate-600 flex items-start gap-2">
+                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0"></span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+
+        const Badge = ({ status }) => {
+          const styles = {
+            '待分配': 'bg-slate-100 text-slate-600',
+            '生产中': 'bg-blue-100 text-blue-700',
+            '待质检': 'bg-yellow-100 text-yellow-700',
+            '已发货': 'bg-green-100 text-green-700',
+            '整改中': 'bg-red-100 text-red-700',
+            'S级': 'bg-purple-100 text-purple-700 border border-purple-200',
+            'A级': 'bg-blue-50 text-blue-600 border border-blue-100',
+            'C级': 'bg-slate-100 text-slate-500 border border-slate-200',
+            '待审核': 'bg-orange-50 text-orange-600 border border-orange-100',
+            '正常': 'bg-emerald-50 text-emerald-600',
+            '申请中': 'bg-orange-50 text-orange-600'
+          };
+          return (
+            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100'}`}>
+              {status}
+            </span>
+          );
+        };
+
+        const CapacityBar = ({ value }) => {
+          let color = 'bg-green-500';
+          if (value > 60) color = 'bg-yellow-500';
+          if (value > 90) color = 'bg-red-500';
+          
+          return (
+            <div className="w-full">
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-slate-500">当前负荷</span>
+                <span className={`font-medium ${value > 90 ? 'text-red-600' : 'text-slate-700'}`}>{value}%</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                <div 
+                  className={`h-full rounded-full ${color}`} 
+                  style={{ width: `${value}%` }}
+                ></div>
+              </div>
+            </div>
+          );
+        };
+
+        // --- Main App Component ---
+
+        function OperationsDashboard() {
+          const [activeTab, setActiveTab] = useState('dashboard');
+
+          const renderContent = () => {
+            switch (activeTab) {
+              case 'dashboard':
+                return (
+                  <div className="space-y-6 animate-in">
+                    {/* Stats */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <StatCard title="今日待分配订单" value="24" subtext="+12% 较昨日" icon={Icons.ClipboardList} color="bg-blue-500" />
+                      <StatCard title="生产中订单" value="156" subtext="其中3单即将超时" icon={Icons.Box} color="bg-indigo-500" />
+                      <StatCard title="活跃农场" value="42" subtext="总运力负荷 78%" icon={Icons.Zap} color="bg-amber-500" />
+                      <StatCard title="本周好评率" value="98.5%" subtext="收到56张返图" icon={Icons.TrendingUp} color="bg-emerald-500" />
+                    </div>
+
+                    {/* Dashboard Split View */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                            实时订单监控 (Live)
+                          </h3>
+                          <button onClick={() => setActiveTab('oms')} className="text-sm text-blue-600 hover:text-blue-700 cursor-pointer">查看全部</button>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm text-left">
+                            <thead className="bg-slate-50 text-slate-500">
+                              <tr>
+                                <th className="p-3 rounded-l-lg">订单号</th>
+                                <th className="p-3">模型</th>
+                                <th className="p-3">状态</th>
+                                <th className="p-3">当前农场</th>
+                                <th className="p-3 rounded-r-lg">操作</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {mockOrders.map((order) => (
+                                <tr key={order.id} className="hover:bg-slate-50">
+                                  <td className="p-3 font-medium text-slate-700">{order.id}</td>
+                                  <td className="p-3">{order.model}</td>
+                                  <td className="p-3">
+                                    <div className="flex items-center gap-2">
+                                      <Badge status={order.status} />
+                                      {order.warning && <Icons.AlertTriangle className="w-4 h-4 text-red-500" />}
+                                    </div>
+                                  </td>
+                                  <td className="p-3 text-slate-500">{order.farm}</td>
+                                  <td className="p-3">
+                                    <button className="text-blue-600 hover:underline">详情</button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                        <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                          <Icons.Clock className="w-5 h-5 text-slate-500" /> 待办事项
+                        </h3>
+                        <div className="space-y-3">
+                          <div className="flex items-start gap-3 p-3 bg-red-50 rounded-lg border border-red-100">
+                            <Icons.AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                            <div>
+                              <h5 className="text-sm font-bold text-red-700">处理超时订单 (3)</h5>
+                              <p className="text-xs text-red-600 mt-1">ORD-2024005 已滞留超过50小时，请立即介入催单。</p>
+                              <button className="mt-2 text-xs bg-white border border-red-200 text-red-600 px-2 py-1 rounded hover:bg-red-100 transition">去处理</button>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                            <Icons.CheckCircle className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+                            <div>
+                              <h5 className="text-sm font-bold text-blue-700">新农场入驻审核</h5>
+                              <p className="text-xs text-blue-600 mt-1">“未来造物工坊”提交了测试样品图。</p>
+                              <button 
+                                onClick={() => setActiveTab('farms')}
+                                className="mt-2 text-xs bg-white border border-blue-200 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 transition"
+                              >
+                                去审核
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+
+              case 'farms':
+                return (
+                  <div className="space-y-6 animate-in">
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
+                        <div>
+                           <p className="text-slate-500 text-sm">入驻农场总数</p>
+                           <h3 className="text-2xl font-bold text-slate-800">42 <span className="text-sm font-normal text-slate-400">家</span></h3>
+                        </div>
+                        <div className="p-3 bg-blue-100 text-blue-600 rounded-lg"><Icons.Building2 className="w-6 h-6" /></div>
+                      </div>
+                      <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
+                        <div>
+                           <p className="text-slate-500 text-sm">平均运力负荷</p>
+                           <h3 className="text-2xl font-bold text-slate-800">78% <span className="text-sm font-normal text-slate-400">偏高</span></h3>
+                        </div>
+                        <div className="p-3 bg-amber-100 text-amber-600 rounded-lg"><Icons.Zap className="w-6 h-6" /></div>
+                      </div>
+                      <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
+                        <div>
+                           <p className="text-slate-500 text-sm">待审核申请</p>
+                           <h3 className="text-2xl font-bold text-slate-800">5 <span className="text-sm font-normal text-slate-400">家</span></h3>
+                        </div>
+                        <div className="p-3 bg-purple-100 text-purple-600 rounded-lg"><Icons.CheckCircle className="w-6 h-6" /></div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                       <div className="p-4 border-b border-slate-100 flex justify-between items-center">
+                         <h3 className="font-bold text-slate-800">农场运力池 (Supply Chain)</h3>
+                         <button className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                           + 邀请入驻
+                         </button>
+                       </div>
+                       <table className="w-full text-sm text-left">
+                          <thead className="bg-slate-50 text-slate-500">
+                            <tr>
+                              <th className="p-4">农场信息</th>
+                              <th className="p-4">等级/状态</th>
+                              <th className="p-4 w-48">实时运力监控</th>
+                              <th className="p-4">擅长标签</th>
+                              <th className="p-4 text-right">操作</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {mockFarms.map((farm) => (
+                              <tr key={farm.id} className="hover:bg-slate-50">
+                                <td className="p-4">
+                                  <div className="font-bold text-slate-800">{farm.name}</div>
+                                  <div className="text-xs text-slate-500 mt-0.5">ID: {farm.id} | {farm.location}</div>
+                                  <div className="text-xs text-slate-400 mt-0.5">负责人: {farm.owner}</div>
+                                </td>
+                                <td className="p-4">
+                                   <div className="flex flex-col gap-2 items-start">
+                                     <Badge status={farm.level} />
+                                     <span className={`text-xs ${farm.status === '整改中' ? 'text-red-500' : 'text-slate-500'}`}>
+                                       {farm.status}
+                                     </span>
+                                   </div>
+                                </td>
+                                <td className="p-4">
+                                   {farm.level === '待审核' ? (
+                                     <span className="text-slate-400 text-xs">--</span>
+                                   ) : (
+                                     <CapacityBar value={farm.capacity} />
+                                   )}
+                                   <div className="text-xs text-slate-400 mt-1">{farm.machines}台机器运作中</div>
+                                </td>
+                                <td className="p-4">
+                                  <div className="flex flex-wrap gap-1">
+                                    {farm.specialized.map((tag, i) => (
+                                      <span key={i} className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs">
+                                        {tag}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </td>
+                                <td className="p-4 text-right">
+                                  <div className="flex justify-end gap-2">
+                                    {farm.level === '待审核' ? (
+                                      <button className="px-3 py-1.5 bg-green-50 text-green-600 border border-green-200 rounded hover:bg-green-100 text-xs">
+                                        审核通过
+                                      </button>
+                                    ) : (
+                                      <>
+                                        <button className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded hover:bg-slate-50 text-xs">
+                                          管理
+                                        </button>
+                                        <button className="p-1.5 text-slate-400 hover:text-blue-600">
+                                          <Icons.MoreHorizontal className="w-4 h-4" />
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                       </table>
+                    </div>
+                  </div>
+                );
+
+              case 'sop':
+                return (
+                  <div className="space-y-6 animate-in">
+                    <div className="bg-slate-800 text-white p-6 rounded-xl shadow-lg flex justify-between items-center">
+                      <div>
+                        <h2 className="text-2xl font-bold mb-2">供应链执行标准手册 (SOP)</h2>
+                        <p className="text-slate-300">V1.0 | 适用对象：所有合作农场 / 质检员</p>
+                      </div>
+                      <button 
+                        onClick={() => alert("模拟下载：SOP_V1.0.pdf")}
+                        className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg backdrop-blur-sm transition"
+                      >
+                        <Icons.Download className="w-4 h-4" /> 下载PDF版
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <SOPCard 
+                        title="1. 耗材安全红线 (Safety)" 
+                        critical={true}
+                        items={[
+                          "严禁使用ABS材料（有毒气味）",
+                          "必须使用PLA/PLA+（玉米淀粉提取）",
+                          "色差控制在ΔE<3以内",
+                          "必须通过REACH/RoHS环保认证"
+                        ]} 
+                      />
+                      <SOPCard 
+                        title="2. 打印工艺标准 (Process)" 
+                        items={[
+                          "层高：标准件 0.2mm，精细件 0.12mm",
+                          "填充率：≥15%（必须保证强度防捏碎）",
+                          "壁厚：≥3层（防止透光和破裂）",
+                          "首层必须监控，防止翘边"
+                        ]} 
+                      />
+                      <SOPCard 
+                        title="3. 后处理规范 (Finish)" 
+                        items={[
+                          "必须彻底拆除支撑结构",
+                          "去毛刺：人工打磨所有接触面（手摸无刺）",
+                          "拉丝处理：使用热风枪处理表面",
+                          "严禁使用化学溶剂抛光"
+                        ]} 
+                      />
+                      <SOPCard 
+                        title="4. 拍照验货标准 (QC Check)" 
+                        items={[
+                          "照片1：成品多角度细节图（清晰无纹裂）",
+                          "照片2：上秤称重图（证明用料实足）",
+                          "平台审核通过后方可打印面单",
+                          "不合格产品直接报废，禁止发货"
+                        ]} 
+                      />
+                      <SOPCard 
+                        title="5. 包装与发货 (Shipping)" 
+                        items={[
+                          "使用平台统一Logo飞机盒",
+                          "内衬：气泡膜独立包裹模型",
+                          "必放：小小设计师证书 + 感谢卡",
+                          "封箱：使用统一品牌胶带"
+                        ]} 
+                      />
+                      <SOPCard 
+                        title="6. 异常处理 (Exception)" 
+                        items={[
+                          "接单后30分钟内响应",
+                          "连续2次打印失败需上报平台",
+                          "若机器故障需立即挂起订单",
+                          "遇到模型不可打印，联系运营介入"
+                        ]} 
+                      />
+                    </div>
+                  </div>
+                );
+              
+              case 'oms':
+                return (
+                  <div className="space-y-4 animate-in">
+                     <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+                        <div className="flex gap-4">
+                          <div className="relative">
+                            <Icons.Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                            <input type="text" placeholder="搜索订单号/用户..." className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64" />
+                          </div>
+                          <button className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">
+                            <Icons.Filter className="w-4 h-4" /> 筛选状态
+                          </button>
+                        </div>
+                        <div className="flex gap-2">
+                           <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm shadow-blue-200">
+                             + 导入外部订单
+                           </button>
+                           <button className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50">
+                             导出Excel
+                           </button>
+                        </div>
+                     </div>
+
+                     <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                        <table className="w-full text-sm text-left">
+                          <thead className="bg-slate-50 text-slate-500 border-b border-slate-100">
+                            <tr>
+                              <th className="p-4"><input type="checkbox" /></th>
+                              <th className="p-4">订单信息</th>
+                              <th className="p-4">预览/SOP自检</th>
+                              <th className="p-4">分配状态</th>
+                              <th className="p-4">履约进度</th>
+                              <th className="p-4 text-right">操作</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {mockOrders.map((order) => (
+                              <tr key={order.id} className="hover:bg-slate-50 group">
+                                <td className="p-4"><input type="checkbox" /></td>
+                                <td className="p-4">
+                                  <div className="font-medium text-slate-800">{order.id}</div>
+                                  <div className="text-xs text-slate-500 mt-0.5">用户: {order.user}</div>
+                                  <div className="text-xs text-slate-400">{order.time}</div>
+                                </td>
+                                <td className="p-4">
+                                   <div className="flex items-center gap-3">
+                                     <div className="w-10 h-10 bg-slate-100 rounded flex items-center justify-center text-xs text-slate-400">
+                                       IMG
+                                     </div>
+                                     <div className="text-xs space-y-1">
+                                       <div className="flex items-center gap-1 text-green-600"><Icons.CheckCircle className="w-3 h-3" /> 模型已修复</div>
+                                       <div className="flex items-center gap-1 text-slate-400"><div className="w-3 h-3 border border-slate-300 rounded-full"></div> 颜色确认</div>
+                                     </div>
+                                   </div>
+                                </td>
+                                <td className="p-4">
+                                  {order.farm === '未分配' ? (
+                                    <button className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded border border-blue-100 hover:bg-blue-100">
+                                      智能派单
+                                    </button>
+                                  ) : (
+                                    <div className="text-sm text-slate-700">{order.farm}</div>
+                                  )}
+                                </td>
+                                <td className="p-4">
+                                  <Badge status={order.status} />
+                                  {order.warning && <div className="text-xs text-red-500 mt-1 font-medium">⚠️ 此时效已滞后</div>}
+                                </td>
+                                <td className="p-4 text-right">
+                                  <button className="text-slate-400 hover:text-blue-600 group-hover:visible invisible">管理</button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                     </div>
+                  </div>
+                );
+
+              case 'growth':
+                return (
+                  <div className="space-y-6 animate-in">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Kids Strategy */}
+                      <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-xl border border-orange-200">
+                        <h3 className="text-xl font-bold text-orange-800 mb-4 flex items-center gap-2">
+                          <Icons.Users className="w-5 h-5" /> 针对孩子：创造力与炫耀
+                        </h3>
+                        <div className="space-y-4">
+                           <div className="bg-white p-4 rounded-lg shadow-sm">
+                              <h4 className="font-bold text-slate-800">1. 神笔马良 (涂鸦变实物)</h4>
+                              <p className="text-sm text-slate-600 mt-1">降低门槛：无需建模，直接上传画作，AI生成浮雕模型。</p>
+                           </div>
+                           <div className="bg-white p-4 rounded-lg shadow-sm">
+                              <h4 className="font-bold text-slate-800">2. 收集癖与拼装机制</h4>
+                              <p className="text-sm text-slate-600 mt-1">分部件打印（龙头、龙身、龙尾），像集卡一样刺激复购。</p>
+                           </div>
+                           <div className="bg-white p-4 rounded-lg shadow-sm">
+                              <h4 className="font-bold text-slate-800">3. 社交货币</h4>
+                              <p className="text-sm text-slate-600 mt-1">定制班级姓名牌、书包挂件、实体勋章，在学校展示。</p>
+                           </div>
+                        </div>
+                      </div>
+
+                      {/* Parents Strategy */}
+                      <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl border border-blue-200">
+                        <h3 className="text-xl font-bold text-blue-800 mb-4 flex items-center gap-2">
+                           <Icons.ShieldCheck className="w-5 h-5" /> 针对家长：教育价值与安全
+                        </h3>
+                        <div className="space-y-4">
+                           <div className="bg-white p-4 rounded-lg shadow-sm">
+                              <h4 className="font-bold text-slate-800">1. 教育闭环 (Killer App)</h4>
+                              <p className="text-sm text-slate-600 mt-1">课程成果实体化：把编程课的代码、科学课的结构，变成看得见的玩具。</p>
+                           </div>
+                           <div className="bg-white p-4 rounded-lg shadow-sm">
+                              <h4 className="font-bold text-slate-800">2. 成长档案</h4>
+                              <p className="text-sm text-slate-600 mt-1">“保存5岁的想象力”，将作品作为时间胶囊永久留念。</p>
+                           </div>
+                           <div className="bg-white p-4 rounded-lg shadow-sm">
+                              <h4 className="font-bold text-slate-800">3. 安全背书</h4>
+                              <p className="text-sm text-slate-600 mt-1">强调PLA玉米材质安全无毒，提供“云监工”查看打印过程。</p>
+                           </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+
+              default:
+                return null;
+            }
+          };
+
+          return (
+            <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
+              {/* Sidebar */}
+              <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col fixed h-full z-10">
+                <div className="p-6 border-b border-slate-800">
+                  <h1 className="text-xl font-bold text-white flex items-center gap-2">
+                    <Icons.Box className="text-blue-500" />
+                    3D打印运营中台
+                  </h1>
+                  <p className="text-xs text-slate-500 mt-1">Admin Dashboard V1.2</p>
+                </div>
+                
+                <nav className="flex-1 p-4 space-y-2">
+                  <button onClick={() => setActiveTab('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'dashboard' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'hover:bg-slate-800'}`}>
+                    <Icons.LayoutDashboard className="w-5 h-5" /> 总览看板
+                  </button>
+                  <button onClick={() => setActiveTab('oms')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'oms' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'hover:bg-slate-800'}`}>
+                    <Icons.ClipboardList className="w-5 h-5" /> 订单管理 (OMS)
+                  </button>
+                  <button onClick={() => setActiveTab('farms')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'farms' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'hover:bg-slate-800'}`}>
+                    <Icons.Building2 className="w-5 h-5" /> 农场管理
+                  </button>
+                  <button onClick={() => setActiveTab('sop')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'sop' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'hover:bg-slate-800'}`}>
+                    <Icons.FileText className="w-5 h-5" /> SOP执行手册
+                  </button>
+                  <button onClick={() => setActiveTab('growth')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'growth' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'hover:bg-slate-800'}`}>
+                    <Icons.TrendingUp className="w-5 h-5" /> 增长策略库
+                  </button>
+                </nav>
+
+                <div className="p-4 border-t border-slate-800">
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50">
+                    <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-xs">
+                      OP
+                    </div>
+                    <div>
+                      <p className="text-sm text-white font-medium">运营总监</p>
+                      <p className="text-xs text-slate-500">已登录</p>
+                    </div>
+                  </div>
+                </div>
+              </aside>
+
+              {/* Main Content */}
+              <main className="flex-1 ml-64 p-8">
+                <header className="flex justify-between items-center mb-8">
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-800">
+                      {activeTab === 'dashboard' && '运营驾驶舱'}
+                      {activeTab === 'oms' && '订单调度中心'}
+                      {activeTab === 'farms' && '农场运力管理'}
+                      {activeTab === 'sop' && 'SOP 标准作业程序'}
+                      {activeTab === 'growth' && '用户增长策略'}
+                    </h2>
+                    <p className="text-slate-500 text-sm mt-1">这里是你的指挥中心，掌控从下单到发货的全流程。</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                     <button className="flex items-center gap-2 text-sm text-slate-600 bg-white border border-slate-200 px-3 py-2 rounded-lg hover:bg-slate-50">
+                       <Icons.Download className="w-4 h-4" /> 导出报表
+                     </button>
+                     <button className="flex items-center gap-2 text-sm text-white bg-slate-900 px-3 py-2 rounded-lg hover:bg-slate-800">
+                       + 新建任务
+                     </button>
+                  </div>
+                </header>
+
+                {renderContent()}
+              </main>
+            </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<OperationsDashboard />);
+    </script>
+</body>
+</html>
